@@ -1,36 +1,22 @@
 {
   "AWSTemplateFormatVersion": "2010-09-09",
   "Description": "Jenkins Stack",
-  "Parameters": {
-    "VpcId": {
-      "Type": "AWS::EC2::VPC::Id",
-      "Description": "The target VPC Id"
-    },
-    "SubnetId": {
-      "Type": "AWS::EC2::Subnet::Id",
-      "Description": "The target Subnet Id"
-    },
-    "KeyName": {
-      "Type": "String",
-      "Description": "The key pair that is allowed SSH access"
-    }
-  }, 
   "Resources": {
     "EC2Instance": {
       "Type": "AWS::EC2::Instance",
       "Properties": {
-        "ImageId": "ami-75a38416",
-        "InstanceType": "t2.micro",
-        "SubnetId": { "Ref": "SubnetId" },
-        "KeyName": { "Ref": "KeyName" },
+        "ImageId": "ami-02bf9e90a6e30dc74",
+        "InstanceType": "t2.large",
+        "SubnetId": "subnet-d776508f",
+        "KeyName": "Work",
         "SecurityGroupIds": [ { "Ref": "EC2InstanceSecurityGroup" } ],
         "IamInstanceProfile": { "Ref": "EC2InstanceProfile" },
         "UserData" : { 
           "Fn::Base64" : { "Fn::Join" : ["", [
             "#!/bin/bash\n",
             "echo ECS_CLUSTER=", { "Ref" : "EcsCluster" }, " >> /etc/ecs/ecs.config\n",
-            "groupadd -g 1000 jenkins\n",
-            "useradd -u 1000 -g jenkins jenkins\n",
+            "groupadd -g 996 jenkins\n",
+            "useradd -u 996 -g jenkins jenkins\n",
             "mkdir -p /ecs/jenkins_home\n",
             "chown -R jenkins:jenkins /ecs/jenkins_home\n"
           ] ] } 
@@ -42,7 +28,7 @@
       "Type": "AWS::EC2::SecurityGroup",
       "Properties": {
         "GroupDescription": "Jenkins Ingress Access",
-        "VpcId": { "Ref": "VpcId" },
+        "VpcId": "vpc-85071ae1",
         "SecurityGroupIngress": [
           { 
             "IpProtocol" : "tcp", 
@@ -91,7 +77,7 @@
       "Type": "AWS::EC2::SecurityGroup",
       "Properties": {
         "GroupDescription": "Jenkins ELB Ingress Access",
-        "VpcId": { "Ref": "VpcId" },
+        "VpcId": "vpc-85071ae1",
         "SecurityGroupIngress": [
           { 
             "IpProtocol" : "tcp", 
@@ -116,7 +102,7 @@
           }
         ],
         "Instances": [ { "Ref": "EC2Instance" } ],
-        "Subnets" : [ { "Ref": "SubnetId" } ]
+        "Subnets" : [ "subnet-d776508f" ]
       }
     },
     "EcsCluster": {
@@ -128,8 +114,8 @@
         "ContainerDefinitions" : [ 
           {
             "Name": "jenkins",
-            "Image": "jmenga/jenkins:ecs",
-            "Memory": 995,
+            "Image": "blankia/jenkins:latest",
+            "Memory": 2024,
             "PortMappings": [ { "ContainerPort": 8080, "HostPort": 8080 } ],
             "MountPoints": [
               {
@@ -140,13 +126,21 @@
                 "ContainerPath": "/var/run/docker.sock",
                 "SourceVolume": "docker"
               }
-            ]
+            ],
+                                          "LogConfiguration": {
+                "LogDriver": "awslogs",
+                "Options": {
+                    "awslogs-group": "/ecs/JenkinsStack2-EcsTaskDefinition-1BIMCQY13HR2T",
+                    "awslogs-region": "eu-west-1",
+                    "awslogs-stream-prefix": "ecs"
+                }
+                                          }
           }
         ],
         "Volumes" : [ 
           { 
             "Name": "jenkins_home",
-            "Host": { "SourcePath": "/ecs/jenkins_home" }
+            "Host": { "SourcePath": "/var/tmp" }
           },
           {
             "Name": "docker",
